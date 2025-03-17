@@ -129,7 +129,7 @@ export default function BhashaGPT() {
     setgptIsTyping(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/ask", {
+      const response = await fetch("https://ae6c-2405-201-c02c-486f-54c-2e9b-daf9-6ff2.ngrok-free.app/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: userMessage }),

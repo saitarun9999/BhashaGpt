@@ -2,6 +2,7 @@
 
 import { Mic, Send } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 
 import { PlayCircle, StopCircle } from "lucide-react";
@@ -9,6 +10,7 @@ import { PlayCircle, StopCircle } from "lucide-react";
 const text = "Many Languages - ONE India";
 
 export default function BhashaGPT() {
+  const router = useRouter();
   const [input, setInput] = useState("");
   const [chatHistory, setChatHistory] = useState<
     { question: string; answer: string }[]
@@ -22,6 +24,23 @@ export default function BhashaGPT() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<any>(null);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [guestMessages, setGuestMessages] = useState(0);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (!storedToken) {
+      setToken(null);
+    } else {
+      setToken(storedToken);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!token && guestMessages >= 4) {
+      router.push("/login");
+    }
+  }, [guestMessages, token, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
@@ -118,6 +137,11 @@ export default function BhashaGPT() {
   const sendMessage = async () => {
     if (!input.trim() || isSending) return;
 
+    if (!token && guestMessages >= 4) {
+      router.push("/login");
+      return;
+    }
+
     const userMessage = input.trim();
     setInput("");
     setIsSending(true);
@@ -129,9 +153,12 @@ export default function BhashaGPT() {
     setgptIsTyping(true);
 
     try {
-      const response = await fetch("https://ae6c-2405-201-c02c-486f-54c-2e9b-daf9-6ff2.ngrok-free.app/ask", {
+      const response = await fetch("http://127.0.0.1:8000/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ question: userMessage }),
       });
       setgptIsTyping(false);
@@ -139,6 +166,7 @@ export default function BhashaGPT() {
       const data = await response.json();
       const botResponse = data.response["content"];
 
+      setGuestMessages((prev) => (!token ? prev + 1 : prev));
       await simulateTyping(botResponse, chatHistory.length);
     } catch (error) {
       setChatHistory((prev) =>
@@ -158,9 +186,33 @@ export default function BhashaGPT() {
       className="h-screen flex flex-col justify-between bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: "url('/images/bg.png')" }}
     >
-      <div className=" w-full py-4 px-5 text-center">
-        <h1 className="text-5xl font-bold text-black">BhashaGPT</h1>
-        <motion.h4 className="text-xl text-black font-bold">{text}</motion.h4>
+      <div className="flex items-center justify-between w-full py-4 px-5 relative">
+        <div className="flex flex-col items-center w-full">
+          <h1 className="text-5xl font-bold text-black">BhashaGPT</h1>
+          <motion.h4 className="text-xl text-black font-bold mt-2">
+            {text}
+          </motion.h4>
+        </div>
+
+        {token ? (
+          <button
+            onClick={() => {
+              localStorage.removeItem("token");
+              setToken(null);
+              router.push("/login");
+            }}
+            className="bg-black text-white px-4 py-2 rounded-lg absolute right-5 top-1/2 transform -translate-y-1/2"
+          >
+            Logout
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push("/login")}
+            className="bg-black text-white px-4 py-2 rounded-lg absolute right-5 top-1/2 transform -translate-y-1/2"
+          >
+            Login
+          </button>
+        )}
       </div>
 
       <div
